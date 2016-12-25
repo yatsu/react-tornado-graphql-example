@@ -121,6 +121,7 @@ class TornadoGraphqlExampleApp(Application):
         if self.allow_origin_pat:
             self.tornado_settings['allow_origin_pat'] = re.compile(self.allow_origin_pat)
         self.tornado_settings['allow_credentials'] = self.allow_credentials
+        self.tornado_settings['debug'] = self.log_level == logging.DEBUG
 
         self.web_app = ExampleWebAPIApplication(self.tornado_settings)
         self.http_server = HTTPServer(self.web_app)

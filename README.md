@@ -28,7 +28,7 @@ Usage
 Launch the GraphQL API server:
 
 ```sh
-% tornado-graphql-example run -d
+% tornado-graphql-example
 ```
 
 Launch the development web server which serves the static client-side app:
@@ -36,6 +36,21 @@ Launch the development web server which serves the static client-side app:
 ```sh
 % npm start
 ```
+
+Development
+-----------
+
+`--debug` option enables auto-start on modifying files:
+
+```sh
+% tornado-graphql-example --debug
+```
+
+By default, all origins are allowed to CORS.
+Be sure to configure the following options.
+
+* `allow_origin` (default `'*'`) or `allow_origin_path`
+* `allow_credentials` (default `True`)
 
 Frameworks/Libraries
 --------------------
