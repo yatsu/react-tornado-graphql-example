@@ -54,9 +54,9 @@ See package.json for more information.
 
 ### Server-side (Python)
 
-* Tornado
-* Tornado CORS
 * GraphQL-core
+* Tornado
+* Traitlets
 
 See tornado/requirements.in for more information.
 

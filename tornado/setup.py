@@ -23,10 +23,7 @@ setup(
     install_requires=requirements,
     entry_points={
         'console_scripts': [
-            'tornado_graphql_example = tornado_graphql_example.commands:main'
-        ],
-        'tornado_graphql_example.commands': [
-            'run = tornado_graphql_example.commands:RunCommand'
+            'tornado_graphql_example = tornado_graphql_example:main'
         ]
     }
 )
