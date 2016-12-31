@@ -130,14 +130,14 @@ class JobServer(Application):
 
         try:
             while True:
-                msg = json.loads(sock.recv())
-                self.log.debug('msg: %s', msg)
+                msg = json.loads(str(sock.recv(), 'ascii'))
                 if 'command' in msg:
                     result = self.handle_command_event(**msg)
-                    response = {'result': result}
+                    response = {'result': str(result, 'ascii')}
                 else:
                     response = {'error': 'Invalid message: {0}'.format(msg)}
-                sock.send(response)
+                self.log.info('response: %s', response)
+                sock.send(bytes(json.dumps(response), 'ascii'))
         finally:
             self.remove_server_info_file()
 
@@ -146,7 +146,6 @@ class JobServer(Application):
             self.log.info('sleep %d', self.sleep)
             sleep(self.sleep)
         result = check_output(command)
-        self.log.debug('result: %s', result)
         return result
 
     def stop(self):
