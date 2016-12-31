@@ -2,7 +2,10 @@
 
 from __future__ import absolute_import, division, print_function
 
+from glob import glob
+import json
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -129,7 +132,7 @@ class TornadoGraphqlExampleApp(Application):
         self.tornado_settings['allow_credentials'] = self.allow_credentials
         self.tornado_settings['debug'] = self.log_level == logging.DEBUG
 
-        self.web_app = ExampleWebAPIApplication(self.tornado_settings)
+        self.web_app = ExampleWebAPIApplication(self.tornado_settings, self.job_servers)
         self.http_server = HTTPServer(self.web_app)
         self.http_server.listen(self.port, self.ip)
 
@@ -139,10 +142,8 @@ class TornadoGraphqlExampleApp(Application):
             argv = sys.argv[1:]
         if argv:
             if argv[0] in self.subcommands.keys():
-                subc = self.name + '-' + argv[0]
-            if subc:
+                self.subcommand = self.name + '-' + argv[0]
                 self.argv = argv
-                self.subcommand = subc
                 return
 
         super(TornadoGraphqlExampleApp, self).initialize(argv)
@@ -168,6 +169,18 @@ class TornadoGraphqlExampleApp(Application):
             self.http_server.stop()
             self.io_loop.stop()
         self.io_loop.add_callback(_stop)
+
+    @property
+    def job_servers(self):
+        env = os.environ
+        xdg = env.get('XDG_RUNTIME_DIR', os.path.join(env.get('HOME'), '.config'))
+        appdir = os.path.join(xdg, 'tornado-graphql-example')
+
+        def server_info(file_path):
+            with open(file_path, 'r') as f:
+                return json.load(f)
+
+        return [server_info(f) for f in glob('{0}/jobserver-*'.format(appdir))]
 
 
 main = launch_new_instance = TornadoGraphqlExampleApp.launch_instance

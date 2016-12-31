@@ -14,7 +14,7 @@ from tornado.escape import json_decode, json_encode, to_unicode
 import traceback
 
 
-logger = logging.getLogger('tornado_graphql_example')
+logger = logging.getLogger('tornado')
 
 
 def error_status(exception):

@@ -104,6 +104,12 @@ class JobServerApp(Application):
         # self.log.debug('start %s', job_server)
         proc = Process(target=job_server)
         proc.start()
+
+        context = zmq.Context.instance()
+        sock = context.socket(zmq.DEALER)
+        sock.linger = 1000
+        sock.identity = bytes(str(self.pid), 'ascii')
+
         self.procs.append(proc)
 
 

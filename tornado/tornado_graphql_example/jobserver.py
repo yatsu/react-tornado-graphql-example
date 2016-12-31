@@ -113,33 +113,33 @@ class JobServer(Application):
             self.debug = True
 
     def start(self):
-        context = zmq.Context()
-        socket = context.socket(zmq.DEALER)
-        if self.port == 0:
-            self.zmq_port = socket.bind_to_random_port('tcp://{0}'.format(self.ip))
-        else:
-            self.zmq_port = socket.bind('tcp://{0}:{1}'.format(self.ip, self.port))
         self.pid = os.getpid()
+        context = zmq.Context.instance()
+        sock = context.socket(zmq.DEALER)
+        sock.linger = 1000
+        sock.identity = bytes(str(self.pid), 'ascii')
+        if self.port == 0:
+            self.zmq_port = sock.bind_to_random_port('tcp://{0}'.format(self.ip))
+        else:
+            self.zmq_port = sock.bind('tcp://{0}:{1}'.format(self.ip, self.port))
         self.log_format = (u'%(color)s[%(levelname)1.1s %(asctime)s.%(msecs).03d '
                            u'%(name)s-{0}]%(end_color)s %(message)s').format(self.pid)
         self.log.info('start %s', self)
 
         self.write_server_info_file()
 
-        while True:
-            try:
-                msg = json.loads(socket.recv())
+        try:
+            while True:
+                msg = json.loads(sock.recv())
                 self.log.debug('msg: %s', msg)
                 if 'command' in msg:
                     result = self.handle_command_event(**msg)
                     response = {'result': result}
                 else:
                     response = {'error': 'Invalid message: {0}'.format(msg)}
-                socket.send(response)
-            except Exception as e:
-                print('Exception', e)
-            finally:
-                self.remove_server_info_file()
+                sock.send(response)
+        finally:
+            self.remove_server_info_file()
 
     def handle_command_event(self, command, **args):
         if self.sleep > 0:
