@@ -3,16 +3,14 @@
 from __future__ import absolute_import, division, print_function
 
 import json
-import logging
 from tornado import web
+from tornado.log import app_log
 import os
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 from .cors import CORSRequestHandler
 from .graphql import GraphQLHandler
 from .schema import Schema
-
-logger = logging.getLogger('tornado')
 
 server_index = 0
 
@@ -45,11 +43,11 @@ class CommandHandler(CORSRequestHandler, web.RequestHandler):
         if ip == '*':
             ip = 'localhost'
         url = 'tcp://{0}:{1}'.format(ip, job_server['zmq_port'])
-        logger.info('connect %s', url)
+        app_log.info('connect %s', url)
         sock.connect(url)
 
         command = json.dumps({'command': self.get_argument('command')})
-        logger.info('command: %s', command)
+        app_log.info('command: %s', command)
         sock.send(bytes(command, 'ascii'))
 
         stream = ZMQStream(sock)
@@ -58,7 +56,7 @@ class CommandHandler(CORSRequestHandler, web.RequestHandler):
     def response_handler(self, stream):
         def handler(msg):
             response = msg[0]
-            logger.info('response: %s', response)
+            app_log.info('response: %s', response)
             self.write(response)
             stream.close()
             self.finish()
@@ -69,7 +67,7 @@ class CommandHandler(CORSRequestHandler, web.RequestHandler):
 class ExampleWebAPIApplication(web.Application):
 
     def __init__(self, settings, job_servers):
-        logger.info('job_servers: %s', [s['pid'] for s in job_servers])
+        app_log.info('job_servers: %s', [s['pid'] for s in job_servers])
 
         handlers = [
             (r'/graphql', ExampleAPIHandler),

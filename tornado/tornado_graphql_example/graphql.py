@@ -11,10 +11,8 @@ import logging
 import sys
 from tornado import gen, web
 from tornado.escape import json_decode, json_encode, to_unicode
+from tornado.log import app_log
 import traceback
-
-
-logger = logging.getLogger('tornado')
 
 
 def error_status(exception):
@@ -49,7 +47,7 @@ def error_response(func):
             self.set_header('Content-Type', 'application/json')
             if not isinstance(ex, (web.HTTPError, ExecutionError, GraphQLError)):
                 tb = ''.join(traceback.format_exception(*sys.exc_info()))
-                logger.error('Error: {0} {1}'.format(ex, tb))
+                app_log.error('Error: {0} {1}'.format(ex, tb))
             self.finish(json_encode({'errors': error_format(ex)}))
         else:
             raise gen.Return(result)
@@ -90,7 +88,7 @@ class GraphQLHandler(web.RequestHandler):
 
         result = self.execute_graphql()
         if result and result.invalid:
-            logger.warn('GraphQL Error {0}'.format(result.errors))
+            app_log.warn('GraphQL Error {0}'.format(result.errors))
             raise ExecutionError(errors=result.errors)
 
         response = {'data': result.data}
@@ -100,7 +98,7 @@ class GraphQLHandler(web.RequestHandler):
 
     def execute_graphql(self):
         graphql_req = self.graphql_request
-        logger.info('graphql_req: {0}'.format(graphql_req))
+        app_log.info('graphql_req: {0}'.format(graphql_req))
 
         try:
             source = graphql.Source(graphql_req.query, name='GraphQL request')
@@ -115,7 +113,7 @@ class GraphQLHandler(web.RequestHandler):
 
         except Exception as ex:
             tb = ''.join(traceback.format_exception(*sys.exc_info()))
-            logger.error('Error: {0} {1}'.format(ex, tb))
+            app_log.error('Error: {0} {1}'.format(ex, tb))
             return ExecutionResult(errors=[ex], invalid=True)
 
     @property
@@ -129,7 +127,7 @@ class GraphQLHandler(web.RequestHandler):
                 req = json_decode(self.request.body)
                 assert isinstance(req, dict)
             except:
-                logger.warn('Invalid JSON:\n{0}'.format(self.request.body))
+                app_log.warn('Invalid JSON:\n{0}'.format(self.request.body))
                 raise web.HTTPError(400, 'Invalid JSON:\n{0}'.format(self.request.body))
 
         elif content_type in ('application/x-www-form-urlencoded',
@@ -145,7 +143,7 @@ class GraphQLHandler(web.RequestHandler):
                    for k, v in req.items()}
             )
         except:
-            logger.warn('Invalid JSON:\n{0}'.format(req))
+            app_log.warn('Invalid JSON:\n{0}'.format(req))
             raise web.HTTPError(400, 'Invalid JSON:\n{0}'.format(req))
 
     @property
