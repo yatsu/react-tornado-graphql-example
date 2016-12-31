@@ -2,3 +2,4 @@ graphql-core>=1.0.1,<1.1
 six>=1.10.0
 tornado>=4.4.2,<4.5
 traitlets>=4.3.1,<4.4
+pyzmq>=16.0.2,<16.1

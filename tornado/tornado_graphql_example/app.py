@@ -4,6 +4,8 @@ from __future__ import absolute_import, division, print_function
 
 import logging
 import re
+import subprocess
+import sys
 from traitlets import Bool, Dict, Integer, Unicode
 from traitlets.config.application import Application, catch_config_error
 from zmq.eventloop import ioloop
@@ -11,11 +13,11 @@ from zmq.eventloop import ioloop
 ioloop.install()
 
 # tornado must be imported after `ioloop.install()`
-from tornado.escape import json_encode  # noqa
 from tornado.log import LogFormatter, app_log, access_log, gen_log  # noqa
 from tornado.httpserver import HTTPServer  # noqa
 from .version import __version__  # noqa
 from .web_app import ExampleWebAPIApplication  # noqa
+from .jobserverapp import JobServerApp  # noqa
 
 
 class TornadoGraphqlExampleApp(Application):
@@ -27,7 +29,9 @@ class TornadoGraphqlExampleApp(Application):
     aliases = {
         'log-level': 'TornadoGraphqlExampleApp.log_level',
         'ip': 'TornadoGraphqlExampleApp.ip',
-        'port': 'TornadoGraphqlExampleApp.port'
+        'port': 'TornadoGraphqlExampleApp.port',
+        'allow-origin': 'TornadoGraphqlExampleApp.allow_origin',
+        'allow-origin-pat': 'TornadoGraphqlExampleApp.allow_origin_pat'
     }
 
     flags = {
@@ -35,11 +39,15 @@ class TornadoGraphqlExampleApp(Application):
             {'Application': {'log_level': logging.DEBUG}},
             'set log level to logging.DEBUG (maximize logging output)'
         ),
+        'disallow-credentials': (
+            {'TornadoGraphqlExampleApp': {'allow_credentials': False}},
+            'set Access-Control-Allow-Credentials'
+        )
     }
 
-    # subcommands = {
-    #     'list': (JobServerApp, JobServerApp.description)
-    # }
+    subcommands = {
+        'jobserver': (JobServerApp, JobServerApp.description)
+    }
 
     _log_formatter_cls = LogFormatter
 
@@ -47,15 +55,11 @@ class TornadoGraphqlExampleApp(Application):
         return logging.INFO
 
     def _log_datefmt_default(self):
-        """Exclude date from default date format"""
         return "%H:%M:%S"
 
     def _log_format_default(self):
-        """override default log format to include time"""
-        return (
-            u"%(color)s[%(levelname)1.1s %(asctime)s.%(msecs).03d]"
-            u"%(end_color)s %(message)s"
-        )
+        return (u'%(color)s[%(levelname)1.1s %(asctime)s.%(msecs).03d '
+                u'%(name)s]%(end_color)s %(message)s')
 
     allow_origin = Unicode(
         '*', config=True,
@@ -83,12 +87,12 @@ class TornadoGraphqlExampleApp(Application):
 
     allow_credentials = Bool(
         True, config=True,
-        help="Set the Access-Control-Allow-Credentials: true header"
+        help='Set the Access-Control-Allow-Credentials: true header'
     )
 
     ip = Unicode(
-        'localhost', config=True,
-        help="The IP address the server will listen on."
+        '', config=True,
+        help='The IP address the server will listen on.'
     )
 
     def _ip_changed(self, name, old, new):
@@ -97,13 +101,15 @@ class TornadoGraphqlExampleApp(Application):
 
     port = Integer(
         4000, config=True,
-        help="The port the server will listen on."
+        help='The port the server will listen on.'
     )
 
     tornado_settings = Dict(
         config=True,
-        help='Supply overrides for the tornado.web.Application that the server uses.'
+        help='tornado.web.Application settings.'
     )
+
+    subcommand = Unicode()
 
     def init_logging(self):
         self.log.propagate = False
@@ -129,18 +135,34 @@ class TornadoGraphqlExampleApp(Application):
 
     @catch_config_error
     def initialize(self, argv=None):
+        if argv is None:
+            argv = sys.argv[1:]
+        if argv:
+            if argv[0] in self.subcommands.keys():
+                subc = self.name + '-' + argv[0]
+            if subc:
+                self.argv = argv
+                self.subcommand = subc
+                return
+
         super(TornadoGraphqlExampleApp, self).initialize(argv)
+
         self.init_logging()
         self.init_webapp()
 
     def start(self):
         super(TornadoGraphqlExampleApp, self).start()
 
+        if self.subcommand:
+            print('subcommand', self.subcommand, self.argv)
+            subprocess.call([self.subcommand] + self.argv[1:])
+            return
+
         self.io_loop = ioloop.IOLoop.current()
         try:
             self.io_loop.start()
         except KeyboardInterrupt:
-            self.log.info("Interrupted...")
+            self.log.info('Interrupted...')
 
     def stop(self):
         def _stop():

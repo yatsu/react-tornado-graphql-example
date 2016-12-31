@@ -23,7 +23,9 @@ setup(
     install_requires=requirements,
     entry_points={
         'console_scripts': [
-            'tornado_graphql_example = tornado_graphql_example:main'
+            'tornado-graphql-example = tornado_graphql_example:main',
+            'tornado-graphql-example-jobserver = tornado_graphql_example.jobserver:main',
+            'tornado-graphql-example-jobserverapp = tornado_graphql_example.jobserverapp:main'
         ]
     }
 )

@@ -63,7 +63,7 @@ class CORSRequestHandler(web.RequestHandler):
         - allow unspecified host/origin (e.g. scripts)
         - allow token-authenticated requests
         """
-        if self.allow_origin == '*' or self.skip_check_origin():
+        if self.allow_origin == '*':
             return True
 
         host = self.request.headers.get("Host")
