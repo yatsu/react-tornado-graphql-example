@@ -154,7 +154,6 @@ class TornadoGraphqlExampleApp(Application):
         super(TornadoGraphqlExampleApp, self).start()
 
         if self.subcommand:
-            print('subcommand', self.subcommand, self.argv)
             subprocess.call([self.subcommand] + self.argv[1:])
             return
 

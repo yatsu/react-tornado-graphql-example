@@ -27,7 +27,8 @@ class JobServerApp(Application):
         'log-level': 'Application.log_level',
         'ip': 'JobServerApp.ip',
         'ports': 'JobServerApp.ports',
-        'num': 'JobServerApp.num'
+        'num': 'JobServerApp.num',
+        'sleep': 'JobServerApp.sleep'
     }
 
     flags = {
@@ -64,6 +65,11 @@ class JobServerApp(Application):
         help='The number of the servers to be launched.'
     )
 
+    sleep = Integer(
+        0, config=True,
+        help='Suspend executing each job for the specified numbrer of seconds'
+    )
+
     procs = List()
 
     @catch_config_error
@@ -92,7 +98,8 @@ class JobServerApp(Application):
             port = (self.ports or [])[i]
         except IndexError:
             port = 0
-        job_server = JobServer(port=port)
+        job_server = JobServer(log_level=self.log_level, ip=self.ip, port=port,
+                               sleep=self.sleep)
         job_server.log.parent = self.log
         # self.log.debug('start %s', job_server)
         proc = Process(target=job_server)

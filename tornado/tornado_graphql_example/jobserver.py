@@ -2,13 +2,16 @@
 
 from __future__ import absolute_import, division, print_function
 
+import errno
+import json
 import logging
 import os
+from subprocess import check_output
+from time import sleep
 from tornado.log import LogFormatter
 from traitlets import Integer, Unicode
 from traitlets.config.application import Application, catch_config_error
 import zmq
-from zmq.eventloop import ioloop
 from .version import __version__
 
 
@@ -20,8 +23,9 @@ class JobServer(Application):
 
     aliases = {
         'log-level': 'Application.log_level',
-        'ip': 'JobServerApp.ip',
-        'port': 'JobServerApp.port'
+        'ip': 'JobServer.ip',
+        'port': 'JobServer.port',
+        'sleep': 'JobServer.sleep'
     }
 
     flags = {
@@ -53,16 +57,53 @@ class JobServer(Application):
         help='The port the server will listen on.'
     )
 
+    sleep = Integer(
+        0, config=True,
+        help='Suspend executing each job for the specified numbrer of seconds'
+    )
+
     pid = Integer()
 
     zmq_port = Integer()
 
     def __repr__(self):
-        return '<%s {pid=%d ip=%s port=%d}>' % (
-            self.__class__.__name__, self.pid, self.ip, self.zmq_port)
+        return '<%s {pid=%d ip=%s port=%d sleep=%d}>' % (
+            self.__class__.__name__, self.pid, self.ip, self.zmq_port, self.sleep)
 
     def __call__(self):
         self.start()
+
+    @property
+    def info_file(self):
+        env = os.environ
+        xdg = env.get('XDG_RUNTIME_DIR', os.path.join(env.get('HOME'), '.config'))
+        appdir = os.path.join(xdg, 'tornado-graphql-example')
+        return os.path.join(appdir, 'jobserver-{0}'.format(self.pid))
+
+    @property
+    def server_info(self):
+        return {
+            'pid': self.pid,
+            'ip': self.ip,
+            'port': self.port,
+            'zmq_port': self.zmq_port,
+            'sleep': self.sleep
+        }
+
+    def write_server_info_file(self):
+        dirname = os.path.dirname(self.info_file)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+
+        with open(self.info_file, 'w') as f:
+            json.dump(self.server_info, f, indent=2, sort_keys=True)
+
+    def remove_server_info_file(self):
+        try:
+            os.unlink(self.info_file)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise
 
     @catch_config_error
     def initialize(self, argv=None):
@@ -83,8 +124,30 @@ class JobServer(Application):
                            u'%(name)s-{0}]%(end_color)s %(message)s').format(self.pid)
         self.log.info('start %s', self)
 
-        self.io_loop = ioloop.IOLoop.current()
-        self.io_loop.start()
+        self.write_server_info_file()
+
+        while True:
+            try:
+                msg = json.loads(socket.recv())
+                self.log.debug('msg: %s', msg)
+                if 'command' in msg:
+                    result = self.handle_command_event(**msg)
+                    response = {'result': result}
+                else:
+                    response = {'error': 'Invalid message: {0}'.format(msg)}
+                socket.send(response)
+            except Exception as e:
+                print('Exception', e)
+            finally:
+                self.remove_server_info_file()
+
+    def handle_command_event(self, command, **args):
+        if self.sleep > 0:
+            self.log.info('sleep %d', self.sleep)
+            sleep(self.sleep)
+        result = check_output(command)
+        self.log.debug('result: %s', result)
+        return result
 
     def stop(self):
         def _stop():
