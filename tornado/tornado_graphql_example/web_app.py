@@ -12,8 +12,6 @@ from .cors import CORSRequestHandler
 from .graphql import GraphQLHandler
 from .schema import Schema
 
-server_index = 0
-
 
 class ExampleAPIHandler(CORSRequestHandler, GraphQLHandler):
 
@@ -24,25 +22,36 @@ class ExampleAPIHandler(CORSRequestHandler, GraphQLHandler):
 
 class CommandHandler(CORSRequestHandler, web.RequestHandler):
 
-    def initialize(self, job_servers):
-        self.job_servers = job_servers
+    def initialize(self, opts):
+        self.opts = opts
+
+    @property
+    def servers(self):
+        return self.opts['servers']
+
+    @property
+    def index(self):
+        return self.opts['index']
+
+    @index.setter
+    def index(self, index):
+        self.opts['index'] = index
 
     @web.asynchronous
     def post(self):
-        global server_index
         self.set_header('Content-Type', 'application/json')
 
-        job_server = self.job_servers[server_index]
-        server_index = (server_index + 1) % len(self.job_servers)
+        server = self.servers[self.index]
+        self.index = (self.index + 1) % len(self.servers)
 
         context = zmq.Context.instance()
         sock = context.socket(zmq.DEALER)
         sock.linger = 1000
         sock.identity = bytes(str(os.getpid()), 'ascii')
-        ip = job_server['ip']
+        ip = server['ip']
         if ip == '*':
             ip = 'localhost'
-        url = 'tcp://{0}:{1}'.format(ip, job_server['zmq_port'])
+        url = 'tcp://{0}:{1}'.format(ip, server['zmq_port'])
         app_log.info('connect %s', url)
         sock.connect(url)
 
@@ -69,11 +78,14 @@ class ExampleWebAPIApplication(web.Application):
     def __init__(self, settings, job_servers):
         app_log.info('job_servers: %s', [s['pid'] for s in job_servers])
 
+        self.command_opts = {
+            'servers': job_servers,
+            'index': 0
+        }
+
         handlers = [
             (r'/graphql', ExampleAPIHandler),
-            (r'/command', CommandHandler, dict(job_servers=job_servers))
+            (r'/command', CommandHandler, dict(opts=self.command_opts))
         ]
 
         super(ExampleWebAPIApplication, self).__init__(handlers, **settings)
-
-        self.job_servers = job_servers
