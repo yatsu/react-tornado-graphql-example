@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Router, Route, IndexRoute, browserHistory } from 'react-router';
 import { syncHistoryWithStore } from 'react-router-redux';
+import { Client } from 'subscriptions-transport-ws';
 import ApolloClient, { createNetworkInterface } from 'apollo-client';
 import { ApolloProvider } from 'react-apollo';
 import App from './containers/App';
@@ -21,9 +22,30 @@ const initialState = {
   })
 };
 
-const client = new ApolloClient({
-  networkInterface: createNetworkInterface({ uri: 'http://localhost:4000/graphql' })
+const addGraphQLSubscriptions = (networkInterface, wsClient) => Object.assign(networkInterface, {
+  subscribe: (request, handler) => wsClient.subscribe({
+    query: print(request.query),
+    variables: request.variables,
+  }, handler),
+  unsubscribe: (id) => {
+    wsClient.unsubscribe(id);
+  },
 });
+const networkInterface = createNetworkInterface({
+  uri: 'http://localhost:4000/graphql',
+  opts: {
+    credentials: 'same-origin',
+  },
+});
+const wsClient = new Client('ws://localhost:4000');
+const networkInterfaceWithSubscriptions = addGraphQLSubscriptions(
+  networkInterface,
+  wsClient
+);
+const client = new ApolloClient({
+  networkInterface: networkInterfaceWithSubscriptions
+});
+
 const store = configureStore(initialState, client);
 const history = syncHistoryWithStore(browserHistory, store)
 

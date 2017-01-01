@@ -3,7 +3,7 @@
 from __future__ import absolute_import, division, print_function
 
 import json
-from tornado import web
+from tornado import web, websocket
 from tornado.log import app_log
 import os
 import zmq
@@ -15,9 +15,40 @@ from .schema import Schema
 
 class ExampleAPIHandler(CORSRequestHandler, GraphQLHandler):
 
+    def initialize(self, opts):
+        self.opts = opts
+
+    @property
+    def sockets(self):
+        return self.opts['sockets']
+
     @property
     def schema(self):
         return Schema
+
+
+class PubSubHandler(websocket.WebSocketHandler):
+
+    def initialize(self, opts):
+        self.opts = opts
+
+    def check_origin(self, origin):
+        return True
+
+    def select_subprotocol(self, subprotocols):
+        return 'graphql-subscriptions'
+
+    @property
+    def sockets(self):
+        return self.opts['sockets']
+
+    def open(self):
+        app_log.info('open socket %s', self)
+        self.sockets.append(self)
+
+    def on_close(self):
+        app_log.info('close socket %s', self)
+        self.sockets.remove(self)
 
 
 class CommandHandler(CORSRequestHandler, web.RequestHandler):
@@ -83,8 +114,13 @@ class ExampleWebAPIApplication(web.Application):
             'index': 0
         }
 
+        self.pubsub_opts = {
+            'sockets': []
+        }
+
         handlers = [
-            (r'/graphql', ExampleAPIHandler),
+            (r'/', PubSubHandler, dict(opts=self.pubsub_opts)),
+            (r'/graphql', ExampleAPIHandler, dict(opts=self.pubsub_opts)),
             (r'/command', CommandHandler, dict(opts=self.command_opts))
         ]
 
