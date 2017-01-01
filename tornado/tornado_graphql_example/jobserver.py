@@ -145,7 +145,7 @@ class JobServer(Application):
         if self.sleep > 0:
             self.log.info('sleep %d', self.sleep)
             sleep(self.sleep)
-        result = check_output(command)
+        result = check_output(['echo'] + command.split(' '))
         return result
 
     def stop(self):
