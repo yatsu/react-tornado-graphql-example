@@ -8,7 +8,7 @@ const SUBSCRIBE = 'todo-pubsub/SUBSCRIBE';
 const SUBSCRIBE_SUCCEEDED = 'todo-pubsub/SUBSCRIBE_SUCCEEDED';
 const UNSUBSCRIBE = 'todo-pubsub/UNSUBSCRIBE';
 const UNSUBSCRIBE_SUCCEEDED = 'todo-pubsub/UNSUBSCRIBE_SUCCEEDED';
-const RECEIVE = 'todo-pubsub/RECEIVE';
+const RECEIVED = 'todo-pubsub/RECEIVED';
 const CREATE = 'todo-pubsub/CREATE';
 const CREATE_SUCCEEDED = 'todo-pubsub/CREATE_SUCCEEDED';
 const CREATE_FAILED = 'todo-pubsub/CREATE_FAILED';
@@ -32,13 +32,12 @@ export default function todoPubSubReducer(state = initialState, action = {}) {
       return state;
     case UNSUBSCRIBE_SUCCEEDED:
       return state.set('subid', null);
-    case RECEIVE:
-      // return state.set('todos', todos.push(fromJS({
-      //   id: action.todo.id,
-      //   text: action.todo.todo,
-      //   completed: action.todo.completed
-      // })));
-      return state;
+    case RECEIVED:
+      return state.set('todos', todos.push(fromJS({
+        id: action.todo.id,
+        text: action.todo.text,
+        completed: action.todo.completed
+      })));
     case CREATE:
       return state;
     case CREATE_SUCCEEDED:
@@ -87,15 +86,14 @@ export function unsubscribeTodosSucceed(subid) {
   }
 }
 
-export function receiveTodo(todo) {
+export function todoReceived(todo) {
   return {
-    type: RECEIVE,
+    type: RECEIVED,
     todo
   };
 }
 
 export function createTodo(todo) {
-  console.log('createTodo', todo);
   return {
     type: CREATE,
     todo
@@ -103,7 +101,6 @@ export function createTodo(todo) {
 }
 
 export function createTodoSucceeded(todo) {
-  console.log('createTodoSucceeded', todo);
   return {
     type: CREATE_SUCCEEDED,
     todo
@@ -111,7 +108,6 @@ export function createTodoSucceeded(todo) {
 }
 
 export function createTodoFailed(error) {
-  console.log('createTodoFailed', error);
   return {
     type: CREATE_FAILED,
     createError: error
@@ -151,19 +147,19 @@ const addTodoMutation = gql`
 
 export const todoSubscribeLogic = createLogic({
   type: SUBSCRIBE,
-  latest: true,
 
   process({ apolloClient, subscriptions }, dispatch) {
     if (subscriptions['todo']) {
       dispatch(subscribeTodosSucceed(subscriptions['todo']._networkSubscriptionId));
       return;
     }
+    // dispatch(todoReceived({ id: '1', text: 'foo', completed: false }));
     const sub = apolloClient.subscribe({ query: newTodosQuery }).subscribe({
-      next(data) {
-        console.log('data', data);
+      next(todo) {
+        dispatch(todoReceived(todo));
       },
       error(err) {
-        console.log('error', err);
+        console.error('subscription error', err);
       }
     });
     subscriptions['todo'] = sub
@@ -193,7 +189,6 @@ export const todoCreateLogic = createLogic({
   },
 
   process({ apolloClient, action }, dispatch) {
-    console.log('action', action);
     return apolloClient.mutate({
       mutation: addTodoMutation,
       variables: { text: action.todo }

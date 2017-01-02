@@ -9,13 +9,21 @@ from tornado.log import app_log
 
 class GraphQLSubscriptionHandler(websocket.WebSocketHandler):
 
-    def initialize(self, sockets):
+    def initialize(self, sockets, subscriptions):
         self._sockets = sockets
-        self.subscriptions = {}
+        self._subscriptions = subscriptions
 
     @property
     def sockets(self):
         return self._sockets
+
+    @property
+    def subscriptions(self):
+        return self._subscriptions.get(self, {})
+
+    @subscriptions.setter
+    def subscriptions(self, subscriptions):
+        self._subscriptions[self] = subscriptions
 
     def select_subprotocol(self, subprotocols):
         return 'graphql-subscriptions'
@@ -23,10 +31,12 @@ class GraphQLSubscriptionHandler(websocket.WebSocketHandler):
     def open(self):
         app_log.info('open socket %s', self)
         self.sockets.append(self)
+        self.subscriptions = {}
 
     def on_close(self):
         app_log.info('close socket %s', self)
         self.sockets.remove(self)
+        self.subscriptions = {}
 
     def on_message(self, message):
         data = json_decode(message)
@@ -42,10 +52,10 @@ class GraphQLSubscriptionHandler(websocket.WebSocketHandler):
 
     def on_subscribe(self, subid, data):
         query = data.get('query')
-        app_log.info('subscrption start: subid=%d query=%s', subid, query)
-        if subid in self.subscriptions:
-            del self.subscriptions[subid]
-        self.subscriptions[subid] = subid
+        app_log.info('subscrption start: subid=%s query=%s', subid, query)
+        if 'todos' in self.subscriptions:
+            del self.subscriptions['todos']
+        self.subscriptions['todos'] = subid
         app_log.info('subsciptions: %s', self.subscriptions)
         self.write_message(json_encode({
             'type': 'subscription_success',
@@ -53,7 +63,7 @@ class GraphQLSubscriptionHandler(websocket.WebSocketHandler):
         }))
 
     def on_unsubscribe(self, subid, data):
-        app_log.info('subscrption end: subid=%d', subid)
-        if subid in self.subscriptions:
-            del self.subscriptions[subid]
+        app_log.info('subscrption end: subid=%s', subid)
+        if 'todos' in self.subscriptions:
+            del self.subscriptions['todos']
         app_log.info('subsciptions: %s', self.subscriptions)

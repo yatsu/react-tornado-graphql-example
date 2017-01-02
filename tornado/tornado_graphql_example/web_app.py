@@ -10,13 +10,14 @@ import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 from .cors import CORSRequestHandler
 from .graphql import GraphQLHandler, GraphQLSubscriptionHandler
-from .schema import Schema
+from .schema import schema
 
 
 class ExampleAPIHandler(CORSRequestHandler, GraphQLHandler):
 
     def initialize(self, opts):
         self.opts = opts
+        self._schema = schema(self.opts)
 
     @property
     def sockets(self):
@@ -24,13 +25,13 @@ class ExampleAPIHandler(CORSRequestHandler, GraphQLHandler):
 
     @property
     def schema(self):
-        return Schema
+        return self._schema
 
 
 class SubscriptionHandler(GraphQLSubscriptionHandler):
 
     def initialize(self, opts):
-        GraphQLSubscriptionHandler.initialize(self, opts['sockets'])
+        GraphQLSubscriptionHandler.initialize(self, opts['sockets'], opts['subscriptions'])
         self.opts = opts
 
     def check_origin(self, origin):
@@ -101,7 +102,8 @@ class ExampleWebAPIApplication(web.Application):
         }
 
         self.websocket_opts = {
-            'sockets': []
+            'sockets': [],
+            'subscriptions': {}
         }
 
         handlers = [
