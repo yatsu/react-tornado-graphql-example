@@ -32,18 +32,25 @@ class GraphQLSubscriptionHandler(websocket.WebSocketHandler):
         data = json_decode(message)
         subid = data.get('id')
         # app_log.debug('data: %s', data)
+
         if data.get('type') == 'subscription_start':
-            query = data.get('query')
-            app_log.info('subscrption start: subid=%d query=%s', subid, query)
-            self.subscriptions[subid] = subid
-            app_log.info('subsciptions: %s', self.subscriptions)
-            self.write_message(json_encode({
-                'type': 'subscription_success',
-                'id': subid
-            }))
+            self.on_subscribe(subid, data)
         elif data.get('type') == 'subscription_end':
-            app_log.info('subscrption end: subid=%d', subid)
-            del self.subscriptions[subid]
-            app_log.info('subsciptions: %s', self.subscriptions)
+            self.on_unsubscribe(subid, data)
         else:
             raise ValueError('Invalid type: {0}'.format(data.get('type')))
+
+    def on_subscribe(self, subid, data):
+        query = data.get('query')
+        app_log.info('subscrption start: subid=%d query=%s', subid, query)
+        self.subscriptions[subid] = subid
+        app_log.info('subsciptions: %s', self.subscriptions)
+        self.write_message(json_encode({
+            'type': 'subscription_success',
+            'id': subid
+        }))
+
+    def on_unsubscribe(self, subid, data):
+        app_log.info('subscrption end: subid=%d', subid)
+        del self.subscriptions[subid]
+        app_log.info('subsciptions: %s', self.subscriptions)

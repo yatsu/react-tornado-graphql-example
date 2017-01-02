@@ -27,10 +27,10 @@ const initialState = {
 // https://github.com/apollostack/GitHunt-React/blob/master/ui/helpers/subscriptions.js
 const addGraphQLSubscriptions = (networkInterface, wsClient) => Object.assign(networkInterface, {
   subscribe: (request, handler) => {
-    wsClient.subscribe({
+    return wsClient.subscribe({
       query: print(request.query),
       variables: request.variables,
-    }, handler)
+    }, handler);
   },
   unsubscribe: (id) => {
     wsClient.unsubscribe(id);

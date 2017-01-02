@@ -1,4 +1,3 @@
-import { List as iList } from 'immutable';
 import { createStore, applyMiddleware, compose } from 'redux';
 import { browserHistory } from 'react-router';
 import { routerMiddleware } from 'react-router-redux';
@@ -13,7 +12,7 @@ export default function configureStore(initialState, client) {
 
   const logicMiddleware = createLogicMiddleware(rootLogic, {
     apolloClient: client,
-    subscriptions: { 'todo': new iList() }
+    subscriptions: { 'todo': null }
   })
 
   return createStore(rootReducer, initialState, composeEnhancers(
