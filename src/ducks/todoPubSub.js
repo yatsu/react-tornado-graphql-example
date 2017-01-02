@@ -5,11 +5,13 @@ import gql from 'graphql-tag';
 // Actions
 
 const SUBSCRIBE = 'todo-pubsub/SUBSCRIBE';
-const SUBSCRIBE_SUCCESS = 'todo-pubsub/SUBSCRIBE_SUCCESS';
+const SUBSCRIBE_SUCCEEDED = 'todo-pubsub/SUBSCRIBE_SUCCEEDED';
 const UNSUBSCRIBE = 'todo-pubsub/UNSUBSCRIBE';
-const UNSUBSCRIBE_SUCCESS = 'todo-pubsub/UNSUBSCRIBE_SUCCESS';
+const UNSUBSCRIBE_SUCCEEDED = 'todo-pubsub/UNSUBSCRIBE_SUCCEEDED';
 const RECEIVE = 'todo-pubsub/RECEIVE';
 const CREATE = 'todo-pubsub/CREATE';
+const CREATE_SUCCEEDED = 'todo-pubsub/CREATE_SUCCEEDED';
+const CREATE_FAILED = 'todo-pubsub/CREATE_FAILED';
 const TOGGLE = 'todo-pubsub/TOGGLE';
 
 // Reducer
@@ -24,20 +26,25 @@ export default function todoPubSubReducer(state = initialState, action = {}) {
   switch (action.type) {
     case SUBSCRIBE:
       return state;
-    case SUBSCRIBE_SUCCESS:
+    case SUBSCRIBE_SUCCEEDED:
       return state.set('subid', action.subid);
     case UNSUBSCRIBE:
       return state;
-    case UNSUBSCRIBE_SUCCESS:
+    case UNSUBSCRIBE_SUCCEEDED:
       return state.set('subid', null);
     case RECEIVE:
+      // return state.set('todos', todos.push(fromJS({
+      //   id: action.todo.id,
+      //   text: action.todo.todo,
+      //   completed: action.todo.completed
+      // })));
       return state;
     case CREATE:
-      return state.set('todos', todos.push(fromJS({
-        id: todos.size.toString(),
-        text: action.todo,
-        completed: false
-      })));
+      return state;
+    case CREATE_SUCCEEDED:
+      return state;
+    case CREATE_FAILED:
+      return state.set('createError', action.createError);
     case TOGGLE:
       const todo = todos.get(action.todoId);
       return state.set(
@@ -60,15 +67,22 @@ export function subscribeTodos() {
   };
 }
 
+export function subscribeTodosSucceed(subid) {
+  return {
+    type: SUBSCRIBE_SUCCEEDED,
+    subid
+  }
+}
+
 export function unsubscribeTodos() {
   return {
     type: UNSUBSCRIBE
   };
 }
 
-export function subscribeTodosSuccess(subid) {
+export function unsubscribeTodosSucceed(subid) {
   return {
-    type: SUBSCRIBE_SUCCESS,
+    type: UNSUBSCRIBE_SUCCEEDED,
     subid
   }
 }
@@ -81,9 +95,26 @@ export function receiveTodo(todo) {
 }
 
 export function createTodo(todo) {
+  console.log('createTodo', todo);
   return {
     type: CREATE,
     todo
+  };
+}
+
+export function createTodoSucceeded(todo) {
+  console.log('createTodoSucceeded', todo);
+  return {
+    type: CREATE_SUCCEEDED,
+    todo
+  };
+}
+
+export function createTodoFailed(error) {
+  console.log('createTodoFailed', error);
+  return {
+    type: CREATE_FAILED,
+    createError: error
   };
 }
 
@@ -106,25 +137,15 @@ const newTodosQuery = gql`
   }
 `;
 
-// const todoListQuery = gql`
-//   query TodoListQuery {
-//     todoList {
-//       todos {
-//         id
-//         text
-//         completed
-//       }
-//     }
-//   }
-// `;
-
-// const toggleTodoMutation = gql`
-//   mutation toggleTodo($id: String!) {
-//     toggleTodo(id: $id) {
-//       completed
-//     }
-//   }
-// `;
+const addTodoMutation = gql`
+  mutation addTodo($text: String!) {
+    addTodo(text: $text) {
+      id
+      text
+      completed
+    }
+  }
+`;
 
 // Logic
 
@@ -134,7 +155,7 @@ export const todoSubscribeLogic = createLogic({
 
   process({ apolloClient, subscriptions }, dispatch) {
     if (subscriptions['todo']) {
-      dispatch(subscribeTodosSuccess(subscriptions['todo']._networkSubscriptionId));
+      dispatch(subscribeTodosSucceed(subscriptions['todo']._networkSubscriptionId));
       return;
     }
     const sub = apolloClient.subscribe({ query: newTodosQuery }).subscribe({
@@ -146,7 +167,7 @@ export const todoSubscribeLogic = createLogic({
       }
     });
     subscriptions['todo'] = sub
-    dispatch(subscribeTodosSuccess(sub._networkSubscriptionId));
+    dispatch(subscribeTodosSucceed(sub._networkSubscriptionId));
   }
 });
 
@@ -158,5 +179,25 @@ export const todoUnsubscribeLogic = createLogic({
     const sub = subscriptions['todo'];
     sub.unsubscribe();
     subscriptions['todo'] = null;
+    dispatch(unsubscribeTodosSucceed(sub._networkSubscriptionId));
+  }
+});
+
+export const todoCreateLogic = createLogic({
+  type: CREATE,
+
+  processOptions: {
+    dispatchReturn: true,
+    successType: createTodoSucceeded,
+    failType: createTodoFailed
+  },
+
+  process({ apolloClient, action }, dispatch) {
+    console.log('action', action);
+    return apolloClient.mutate({
+      mutation: addTodoMutation,
+      variables: { text: action.todo }
+    })
+    .then(resp => resp.data.addTodo);
   }
 });

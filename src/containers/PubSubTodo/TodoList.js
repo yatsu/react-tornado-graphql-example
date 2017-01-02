@@ -9,10 +9,10 @@ class TodoListC extends TodoList {
     todos: IPropTypes.listOf(IPropTypes.contains({
       id: PropTypes.string.isRequired,
       completed: PropTypes.bool.isRequired,
-      text: PropTypes.string.isRequired,
-      subscribeTodos: PropTypes.func.isRequired,
-      unsubscribeTodos: PropTypes.func.isRequired
+      text: PropTypes.string.isRequired
     })).isRequired,
+    subscribeTodos: PropTypes.func.isRequired,
+    unsubscribeTodos: PropTypes.func.isRequired,
     onTodoClick: PropTypes.func.isRequired
   }
 

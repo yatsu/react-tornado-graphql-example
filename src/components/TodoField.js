@@ -6,6 +6,10 @@ class TodoField extends Component {
     onSubmit: PropTypes.func.isRequired
   }
 
+  componentDidMount() {
+    this.input.focus();
+  }
+
   handleSubmit(event) {
     const { onSubmit } = this.props;
 
@@ -15,6 +19,7 @@ class TodoField extends Component {
     }
     onSubmit(this.input.value);
     this.input.value = '';
+    this.input.focus();
   }
 
   render() {

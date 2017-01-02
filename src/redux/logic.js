@@ -1,8 +1,13 @@
-import { todoSubscribeLogic, todoUnsubscribeLogic } from '../ducks/todoPubSub';
+import {
+  todoSubscribeLogic,
+  todoUnsubscribeLogic,
+  todoCreateLogic
+} from '../ducks/todoPubSub';
 
 const rootLogic = [
   todoSubscribeLogic,
-  todoUnsubscribeLogic
+  todoUnsubscribeLogic,
+  todoCreateLogic
 ];
 
 export default rootLogic;

@@ -13,7 +13,7 @@ class Header extends Component {
           </Link>
           <Link to="/todo" className="item">Todo (Local)</Link>
           <Link to="/todo-remote" className="item">Todo (GraphQL)</Link>
-          <Link to="/todo-pubsub" className="item">Todo (PubSub)</Link>
+          <Link to="/todo-pubsub" className="item">Todo (GraphQL PubSub)</Link>
         </div>
       </div>
     );

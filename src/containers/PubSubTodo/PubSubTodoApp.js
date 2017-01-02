@@ -7,7 +7,7 @@ class PubSubTodoApp extends Component {
   render() {
     return (
       <div className="ui main text container main-content">
-        <h1>Todo Example (GraphQL with Subscription)</h1>
+        <h1>Todo Example (GraphQL PubSub)</h1>
         <AddTodo/>
         <Divider/>
         <TodoList/>
