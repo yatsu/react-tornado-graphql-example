@@ -157,5 +157,6 @@ export const todoUnsubscribeLogic = createLogic({
   process({ apolloClient, subscriptions }, dispatch) {
     const sub = subscriptions['todo'];
     sub.unsubscribe();
+    subscriptions['todo'] = null;
   }
 });

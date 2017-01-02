@@ -43,6 +43,8 @@ class GraphQLSubscriptionHandler(websocket.WebSocketHandler):
     def on_subscribe(self, subid, data):
         query = data.get('query')
         app_log.info('subscrption start: subid=%d query=%s', subid, query)
+        if subid in self.subscriptions:
+            del self.subscriptions[subid]
         self.subscriptions[subid] = subid
         app_log.info('subsciptions: %s', self.subscriptions)
         self.write_message(json_encode({
@@ -52,5 +54,6 @@ class GraphQLSubscriptionHandler(websocket.WebSocketHandler):
 
     def on_unsubscribe(self, subid, data):
         app_log.info('subscrption end: subid=%d', subid)
-        del self.subscriptions[subid]
+        if subid in self.subscriptions:
+            del self.subscriptions[subid]
         app_log.info('subsciptions: %s', self.subscriptions)
