@@ -148,12 +148,11 @@ const addTodoMutation = gql`
 export const todoSubscribeLogic = createLogic({
   type: SUBSCRIBE,
 
-  process({ apolloClient, subscriptions }, dispatch) {
+  process({ apolloClient, subscriptions }, dispatch, done) {
     if (subscriptions['todo']) {
       dispatch(subscribeTodosSucceed(subscriptions['todo']._networkSubscriptionId));
       return;
     }
-    // dispatch(todoReceived({ id: '1', text: 'foo', completed: false }));
     const sub = apolloClient.subscribe({ query: newTodosQuery }).subscribe({
       next(todo) {
         dispatch(todoReceived(todo));
