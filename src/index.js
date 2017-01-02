@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Router, Route, IndexRoute, browserHistory } from 'react-router';
 import { syncHistoryWithStore } from 'react-router-redux';
+import { print } from 'graphql-tag/printer';
 import { Client } from 'subscriptions-transport-ws';
 import ApolloClient, { createNetworkInterface } from 'apollo-client';
 import { ApolloProvider } from 'react-apollo';
@@ -10,6 +11,7 @@ import App from './containers/App';
 import HomeApp from './containers/Home/HomeApp';
 import TodoApp from './containers/Todo/TodoApp';
 import RemoteTodoApp from './containers/RemoteTodo/RemoteTodoApp';
+import PubSubTodoApp from './containers/PubSubTodo/PubSubTodoApp';
 import configureStore from './redux/store';
 import './index.css';
 
@@ -22,11 +24,14 @@ const initialState = {
   })
 };
 
+// https://github.com/apollostack/GitHunt-React/blob/master/ui/helpers/subscriptions.js
 const addGraphQLSubscriptions = (networkInterface, wsClient) => Object.assign(networkInterface, {
-  subscribe: (request, handler) => wsClient.subscribe({
-    query: print(request.query),
-    variables: request.variables,
-  }, handler),
+  subscribe: (request, handler) => {
+    wsClient.subscribe({
+      query: print(request.query),
+      variables: request.variables,
+    }, handler)
+  },
   unsubscribe: (id) => {
     wsClient.unsubscribe(id);
   },
@@ -55,7 +60,8 @@ ReactDOM.render(
       <Route path="/" component={App}>
         <IndexRoute component={HomeApp}/>
         <Route path="todo" component={TodoApp}/>
-        <Route path="remote" component={RemoteTodoApp}/>
+        <Route path="todo-remote" component={RemoteTodoApp}/>
+        <Route path="todo-pubsub" component={PubSubTodoApp}/>
       </Route>
     </Router>
   </ApolloProvider>,

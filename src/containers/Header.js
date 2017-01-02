@@ -11,27 +11,9 @@ class Header extends Component {
             <img src={logo} className="app-logo" alt="logo"/>
             Example App
           </Link>
-          <Link to="/" className="item">Home</Link>
-          <Link to="/todo" className="item">Todo</Link>
-          <Link to="/remote" className="item">Todo (Remote)</Link>
-          <div className="ui simple dropdown item">
-            Dropdown <i className="dropdown icon"/>
-            <div className="menu">
-              <Link className="item">Link Item 1</Link>
-              <Link className="item">Link Item 2</Link>
-              <div className="divider"/>
-              <div className="header">Header Item</div>
-              <div className="item">
-                <i className="dropdown icon"/>
-                Sub Menu
-                <div className="menu">
-                  <Link className="item">Link Item 1</Link>
-                  <Link className="item">Link Item 2</Link>
-                </div>
-              </div>
-              <Link className="item">Link Item</Link>
-            </div>
-          </div>
+          <Link to="/todo" className="item">Todo (Local)</Link>
+          <Link to="/todo-remote" className="item">Todo (GraphQL)</Link>
+          <Link to="/todo-pubsub" className="item">Todo (PubSub)</Link>
         </div>
       </div>
     );

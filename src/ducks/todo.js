@@ -2,8 +2,8 @@ import { Map as iMap, fromJS } from 'immutable';
 
 // Actions
 
-const CREATE = 'todos/CREATE';
-const TOGGLE = 'todos/TOGGLE';
+const CREATE = 'todo/CREATE';
+const TOGGLE = 'todo/TOGGLE';
 
 // Reducer
 

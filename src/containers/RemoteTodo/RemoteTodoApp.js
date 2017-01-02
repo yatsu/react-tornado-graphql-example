@@ -13,7 +13,7 @@ class RemoteTodoApp extends Component {
 
     return (
       <div className="ui main text container main-content">
-        <h1>Todo Example (Remote)</h1>
+        <h1>Todo Example (GraphQL)</h1>
         <AddTodo refetchTodoList={refetchTodoList}/>
         <Divider/>
         <TodoList todos={todos} onTodoClick={toggleTodo}/>

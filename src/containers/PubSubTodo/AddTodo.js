@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import TodoField from '../../components/TodoField';
-import { createTodo } from '../../ducks/todo';
+import { createTodo } from '../../ducks/todoPubSub';
 
 class AddTodoContainer extends Component {
   static propTypes = {
