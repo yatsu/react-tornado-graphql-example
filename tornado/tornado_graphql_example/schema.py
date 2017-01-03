@@ -17,7 +17,7 @@ TodoList = namedtuple('TodoList', 'todos')
 
 TodoType = GraphQLObjectType(
     name='Todo',
-    fields=lambda: {
+    fields={
         'id': GraphQLField(
             GraphQLNonNull(GraphQLString),
         ),
@@ -30,16 +30,6 @@ TodoType = GraphQLObjectType(
     }
 )
 
-TodoListType = GraphQLObjectType(
-    name='TodoList',
-    fields=lambda: {
-        'todos': GraphQLField(
-            GraphQLList(TodoType),
-            resolver=lambda todo_list, *_: get_todos(todo_list),
-        )
-    }
-)
-
 
 todo_data = OrderedDict({
     '1': Todo(id='1', text='Make America Great Again', completed=False),
@@ -47,83 +37,90 @@ todo_data = OrderedDict({
 })
 
 
-def get_todo_list(opts):
-    return TodoList(todos=todo_data.keys())
+class QueryRoot(GraphQLObjectType):
+
+    def __init__(self):
+        super(QueryRoot, self).__init__(
+            name='Query',
+            fields={
+                'todoList': GraphQLField(
+                    GraphQLObjectType(
+                        name='TodoList',
+                        fields={
+                            'todos': GraphQLField(
+                                GraphQLList(TodoType),
+                                resolver=self.get_todos
+                            )
+                        }
+                    ),
+                    resolver=self.get_todo_ids
+                )
+            }
+        )
+
+    def get_todo_ids(self, source, args, context, info):
+        return todo_data.keys()
+
+    def get_todos(self, source, args, context, info):
+        return [todo_data[todo_id] for todo_id in source]
 
 
-def get_todo(id, opts):
-    return todo_data.get(id)
+class MutationRoot(GraphQLObjectType):
 
+    def __init__(self, sockets, subscriptions):
+        super(MutationRoot, self).__init__(
+            name='Mutation',
+            fields={
+                'addTodo': GraphQLField(
+                    TodoType,
+                    args={'text': GraphQLArgument(GraphQLString)},
+                    resolver=self.add_todo
+                ),
+                'toggleTodo': GraphQLField(
+                    TodoType,
+                    args={'id': GraphQLArgument(GraphQLString)},
+                    resolver=self.toggle_todo
+                )
+            }
+        )
+        self.sockets = sockets
+        self.subscriptions = subscriptions
 
-def get_todos(todo_list, opts):
-    return map(get_todo, todo_list.todos)
+    def add_todo(self, source, args, context, info):
+        text = args.get('text')
+        todo = Todo(id=str(len(todo_data) + 1), text=text, completed=False)
+        todo_data[todo.id] = todo
+        self.send_notif('todos', {
+            'id': todo.id,
+            'text': todo.text,
+            'completed': todo.completed
+        })
+        return todo
 
+    def toggle_todo(self, source, args, context, info):
+        todo_id = args.get('id')
+        cur_todo = todo_data[todo_id]
+        todo = Todo(id=todo_id, text=cur_todo.text,
+                    completed=not cur_todo.completed)
+        todo_data[todo_id] = todo
+        return todo
 
-def add_todo(text, opts):
-    todo = Todo(id=str(len(todo_data) + 1), text=text, completed=False)
-    todo_data[todo.id] = todo
-    print('add_todo', text)
-    for sock in opts['sockets']:
-        subscriptions = opts['subscriptions'].get(sock, [])
-        if 'todos' in subscriptions:
-            print('write_message', subscriptions['todos'])
-            sock.write_message(json.dumps({
-                'type': 'subscription_data',
-                'id': subscriptions['todos'],
-                'payload': {
-                    'data': {
-                        'id': todo.id,
-                        'text': todo.text,
-                        'completed': todo.completed
+    def send_notif(self, name, data):
+        for sock in self.sockets:
+            subscriptions = self.subscriptions.get(sock, {})
+            subid = subscriptions.get(name)
+            if subid is not None:
+                sock.write_message(json.dumps({
+                    'type': 'subscription_data',
+                    'id': subid,
+                    'payload': {
+                        'data': data
                     }
-                }
-            }))
-    return todo
+                }))
 
 
-def toggle_todo(id, opts):
-    cur_todo = todo_data[id]
-    todo = Todo(id=id, text=cur_todo.text, completed=not cur_todo.completed)
-    todo_data[id] = todo
-    return todo
-
-
-def query_root(opts):
-    return GraphQLObjectType(
-        name='Query',
-        fields=lambda: {
-            'todoList': GraphQLField(
-                TodoListType,
-                resolver=lambda root, args, *_:
-                    get_todo_list(opts=opts),
-            )
-        }
+def schema(sockets, subscriptions):
+    return GraphQLSchema(
+        QueryRoot(),
+        MutationRoot(sockets, subscriptions)
     )
-
-
-def mutation_root(opts):
-    return GraphQLObjectType(
-        name='Mutation',
-        fields=lambda: {
-            'addTodo': GraphQLField(
-                TodoType,
-                args={
-                    'text': GraphQLArgument(GraphQLString)
-                },
-                resolver=lambda root, args, *_:
-                    add_todo(args.get('text'), opts=opts)
-            ),
-            'toggleTodo': GraphQLField(
-                TodoType,
-                args={
-                    'id': GraphQLArgument(GraphQLString)
-                },
-                resolver=lambda root, args, *_:
-                    toggle_todo(args.get('id'), opts=opts)
-            )
-        }
-    )
-
-
-def schema(opts):
-    return GraphQLSchema(query_root(opts), mutation_root(opts))

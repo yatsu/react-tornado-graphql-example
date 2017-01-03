@@ -16,12 +16,12 @@ from .schema import schema
 class ExampleAPIHandler(CORSRequestHandler, GraphQLHandler):
 
     def initialize(self, opts):
-        self.opts = opts
-        self._schema = schema(self.opts)
+        super(ExampleAPIHandler, self).initialize()
 
-    @property
-    def sockets(self):
-        return self.opts['sockets']
+        self.opts = opts
+        self._schema = schema(
+            opts['sockets'], opts['subscriptions']
+        )
 
     @property
     def schema(self):
@@ -31,8 +31,10 @@ class ExampleAPIHandler(CORSRequestHandler, GraphQLHandler):
 class SubscriptionHandler(GraphQLSubscriptionHandler):
 
     def initialize(self, opts):
-        GraphQLSubscriptionHandler.initialize(self, opts['sockets'], opts['subscriptions'])
         self.opts = opts
+        GraphQLSubscriptionHandler.initialize(
+            self, opts['sockets'], opts['subscriptions']
+        )
 
     def check_origin(self, origin):
         return True
