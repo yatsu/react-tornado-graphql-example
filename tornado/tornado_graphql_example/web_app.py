@@ -31,13 +31,31 @@ class ExampleAPIHandler(CORSRequestHandler, GraphQLHandler):
 class SubscriptionHandler(GraphQLSubscriptionHandler):
 
     def initialize(self, opts):
+        super(SubscriptionHandler, self).initialize()
+
         self.opts = opts
-        GraphQLSubscriptionHandler.initialize(
-            self, opts['sockets'], opts['subscriptions']
+        self._schema = schema(
+            opts['sockets'], opts['subscriptions']
         )
 
+    @property
+    def schema(self):
+        return self._schema
+
+    @property
+    def sockets(self):
+        return self.opts['sockets']
+
+    @property
+    def subscriptions(self):
+        return self.opts['subscriptions'].get(self, {})
+
+    @subscriptions.setter
+    def subscriptions(self, subscriptions):
+        self.opts['subscriptions'][self] = subscriptions
+
     def check_origin(self, origin):
-        return True
+        return True  # TODO: check origin
 
 
 class CommandHandler(CORSRequestHandler, web.RequestHandler):
@@ -98,20 +116,17 @@ class ExampleWebAPIApplication(web.Application):
     def __init__(self, settings, job_servers):
         app_log.info('job_servers: %s', [s['pid'] for s in job_servers])
 
-        self.command_opts = {
+        self.opts = {
             'servers': job_servers,
-            'index': 0
-        }
-
-        self.websocket_opts = {
+            'index': 0,
             'sockets': [],
             'subscriptions': {}
         }
 
         handlers = [
-            (r'/', SubscriptionHandler, dict(opts=self.websocket_opts)),
-            (r'/graphql', ExampleAPIHandler, dict(opts=self.websocket_opts)),
-            (r'/command', CommandHandler, dict(opts=self.command_opts))
+            (r'/', SubscriptionHandler, dict(opts=self.opts)),
+            (r'/graphql', ExampleAPIHandler, dict(opts=self.opts)),
+            (r'/command', CommandHandler, dict(opts=self.opts))
         ]
 
         super(ExampleWebAPIApplication, self).__init__(handlers, **settings)

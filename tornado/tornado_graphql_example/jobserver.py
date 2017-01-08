@@ -187,6 +187,9 @@ class JobServer(Application):
                 'timestamp': timestamp
             }).encode('utf-8')])
 
+    def countdown_handler2(self, interval, count):
+        return self.countdown_handler(interval, count)
+
     def stop(self):
         def _stop():
             self.io_loop.stop()

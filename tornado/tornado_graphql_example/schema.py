@@ -90,11 +90,16 @@ class MutationRoot(GraphQLObjectType):
         text = args.get('text')
         todo = Todo(id=str(len(todo_data) + 1), text=text, completed=False)
         todo_data[todo.id] = todo
+
+        # TODO: do this in GraphQLSubscriptionHandler as a backend response
+        #       handler
+        # TODO: execute GraphQL query
         self.send_notif('todos', {
             'id': todo.id,
             'text': todo.text,
             'completed': todo.completed
         })
+
         return todo
 
     def toggle_todo(self, source, args, context, info):
