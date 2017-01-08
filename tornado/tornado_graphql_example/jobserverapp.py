@@ -4,7 +4,7 @@ from __future__ import absolute_import, division, print_function
 
 import logging
 from multiprocessing import Process
-from traitlets import Integer, List, Unicode
+from traitlets import Bool, Integer, List, Unicode
 from traitlets.config.application import Application, catch_config_error
 from zmq.eventloop import ioloop
 from .version import __version__
@@ -71,6 +71,8 @@ class JobServerApp(Application):
     )
 
     procs = List()
+
+    debug = Bool(False)
 
     @catch_config_error
     def initialize(self, argv=None):

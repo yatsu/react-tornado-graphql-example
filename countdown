@@ -1,0 +1,35 @@
+#!/bin/bash
+
+interval=0
+
+usage() {
+    echo "Usage: $0 [-i interval] <num>"
+}
+
+while getopts :i:h OPT; do
+    case $OPT in
+        i)  interval=$OPTARG
+            ;;
+        h)  usage
+            exit
+            ;;
+        \?) usage 1>&2
+            exit 1
+            ;;
+    esac
+done
+
+shift $((OPTIND - 1))
+
+if [ -z "$1" ]; then
+    usage 1>&2
+    exit 1
+fi
+
+set -eu
+
+echo $1
+for i in $(seq $1); do
+    sleep $interval
+    echo $(($1 - $i))
+done

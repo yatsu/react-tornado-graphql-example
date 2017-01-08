@@ -2,17 +2,26 @@
 
 from __future__ import absolute_import, division, print_function
 
+import atexit
+from datetime import datetime
 import errno
 import json
 import logging
 import os
-from subprocess import check_output
-from time import sleep
-from tornado.log import LogFormatter
-from traitlets import Integer, Unicode
+import shlex
+from traitlets import Bool, Integer, Unicode
 from traitlets.config.application import Application, catch_config_error
 import zmq
-from .version import __version__
+from zmq.eventloop import ioloop, zmqstream
+
+ioloop.install()
+
+# tornado must be imported after `ioloop.install()`
+from tornado import gen  # noqa
+from tornado.iostream import StreamClosedError  # noqa
+from tornado.log import LogFormatter  # noqa
+from tornado.process import Subprocess  # noqa
+from .version import __version__  # noqa
 
 
 class JobServer(Application):
@@ -24,8 +33,7 @@ class JobServer(Application):
     aliases = {
         'log-level': 'Application.log_level',
         'ip': 'JobServer.ip',
-        'port': 'JobServer.port',
-        'sleep': 'JobServer.sleep'
+        'port': 'JobServer.port'
     }
 
     flags = {
@@ -57,18 +65,13 @@ class JobServer(Application):
         help='The port the server will listen on.'
     )
 
-    sleep = Integer(
-        0, config=True,
-        help='Suspend executing each job for the specified numbrer of seconds'
-    )
-
     pid = Integer()
 
     zmq_port = Integer()
 
     def __repr__(self):
-        return '<%s {pid=%d ip=%s port=%d sleep=%d}>' % (
-            self.__class__.__name__, self.pid, self.ip, self.zmq_port, self.sleep)
+        return '<%s {pid=%d ip=%s port=%d}>' % (
+            self.__class__.__name__, self.pid, self.ip, self.zmq_port)
 
     def __call__(self):
         self.start()
@@ -86,8 +89,7 @@ class JobServer(Application):
             'pid': self.pid,
             'ip': self.ip,
             'port': self.port,
-            'zmq_port': self.zmq_port,
-            'sleep': self.sleep
+            'zmq_port': self.zmq_port
         }
 
     def write_server_info_file(self):
@@ -105,6 +107,8 @@ class JobServer(Application):
             if e.errno != errno.ENOENT:
                 raise
 
+    debug = Bool(False)
+
     @catch_config_error
     def initialize(self, argv=None):
         super(JobServer, self).initialize(argv)
@@ -115,38 +119,73 @@ class JobServer(Application):
     def start(self):
         self.pid = os.getpid()
         context = zmq.Context.instance()
-        sock = context.socket(zmq.DEALER)
-        sock.linger = 1000
-        sock.identity = bytes(str(self.pid), 'ascii')
+        zmq_sock = context.socket(zmq.DEALER)
+        zmq_sock.linger = 1000
+        zmq_sock.identity = bytes(str(self.pid), 'ascii')
         if self.port == 0:
-            self.zmq_port = sock.bind_to_random_port('tcp://{0}'.format(self.ip))
+            self.zmq_port = zmq_sock.bind_to_random_port('tcp://{0}'.format(self.ip))
         else:
-            self.zmq_port = sock.bind('tcp://{0}:{1}'.format(self.ip, self.port))
+            self.zmq_port = zmq_sock.bind('tcp://{0}:{1}'.format(self.ip, self.port))
+
+        self.zmq_stream = zmqstream.ZMQStream(zmq_sock)
+        self.zmq_stream.on_recv(self.request_handler)
+
         self.log_format = (u'%(color)s[%(levelname)1.1s %(asctime)s.%(msecs).03d '
                            u'%(name)s-{0}]%(end_color)s %(message)s').format(self.pid)
         self.log.info('start %s', self)
 
         self.write_server_info_file()
 
+        atexit.register(self.remove_server_info_file)
+
+        self.io_loop = ioloop.IOLoop.current()
         try:
-            while True:
-                msg = json.loads(str(sock.recv(), 'ascii'))
-                if 'command' in msg:
-                    result = self.handle_command_event(**msg)
-                    response = {'result': str(result, 'ascii')}
-                else:
-                    response = {'error': 'Invalid message: {0}'.format(msg)}
-                self.log.info('response: %s', response)
-                sock.send(bytes(json.dumps(response), 'ascii'))
+            self.io_loop.start()
+        except KeyboardInterrupt:
+            self.log.info('JobServer interrupted...')
         finally:
             self.remove_server_info_file()
 
-    def handle_command_event(self, command, **args):
-        if self.sleep > 0:
-            self.log.info('sleep %d', self.sleep)
-            sleep(self.sleep)
-        result = check_output(['echo'] + command.split(' '))
-        return result
+    @gen.coroutine
+    def request_handler(self, msg):
+        ident, request = msg
+        req_data = json.loads(request.decode('utf-8'))
+        self.log.info('request: %s', req_data)
+
+        if 'command' not in req_data:
+            raise ValueError('command must be specified in a request')
+        command = req_data['command']
+        if command == 'countdown':
+            yield self.countdown_handler(
+                req_data.get('interval', 0),
+                req_data.get('count', 5)
+            )
+        else:
+            raise ValueError("Unknown command '{0}'".format(command))
+
+    @gen.coroutine
+    def countdown_handler(self, interval, count):
+        command = '{0}/countdown -i {1} {2}'.format(os.getcwd(), interval, count)
+        proc = Subprocess(shlex.split(command), stdout=Subprocess.STREAM)
+        try:
+            while True:
+                line_bytes = yield proc.stdout.read_until(b'\n')
+                line = line_bytes.decode('utf-8')[:-1]
+                self.log.info('command read: %s', line)
+                timestamp = datetime.now().timestamp()
+                self.zmq_stream.send_multipart([b'0', json.dumps({
+                    'stdout': line,
+                    'finished': False,
+                    'timestamp': timestamp
+                }).encode('utf-8')])
+        except StreamClosedError:
+            self.log.info('command closed')
+            timestamp = datetime.now().timestamp()
+            self.zm_stream.send_multipart([b'0', json.dumps({
+                'stdout': None,
+                'finished': False,
+                'timestamp': timestamp
+            }).encode('utf-8')])
 
     def stop(self):
         def _stop():

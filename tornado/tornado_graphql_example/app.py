@@ -49,7 +49,7 @@ class TornadoGraphqlExampleApp(Application):
     }
 
     subcommands = {
-        'jobserver': (JobServerApp, JobServerApp.description)
+        'jobserverapp': (JobServerApp, JobServerApp.description)
     }
 
     _log_formatter_cls = LogFormatter
@@ -155,14 +155,18 @@ class TornadoGraphqlExampleApp(Application):
         super(TornadoGraphqlExampleApp, self).start()
 
         if self.subcommand:
-            subprocess.call([self.subcommand] + self.argv[1:])
-            return
+            try:
+                subprocess.call([self.subcommand] + self.argv[1:])
+            except KeyboardInterrupt:
+                self.log.info('%s interrupted...', self.subcommand)
+            finally:
+                return
 
         self.io_loop = ioloop.IOLoop.current()
         try:
             self.io_loop.start()
         except KeyboardInterrupt:
-            self.log.info('Interrupted...')
+            self.log.info('TornadoGraphqlExampleApp interrupted...')
 
     def stop(self):
         def _stop():
