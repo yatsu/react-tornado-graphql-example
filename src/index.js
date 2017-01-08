@@ -12,6 +12,7 @@ import HomeApp from './containers/Home/HomeApp';
 import TodoApp from './containers/Todo/TodoApp';
 import RemoteTodoApp from './containers/RemoteTodo/RemoteTodoApp';
 import PubSubTodoApp from './containers/PubSubTodo/PubSubTodoApp';
+import CommandApp from './containers/Command/CommandApp';
 import configureStore from './redux/store';
 import './index.css';
 
@@ -62,6 +63,7 @@ ReactDOM.render(
         <Route path="todo" component={TodoApp}/>
         <Route path="todo-remote" component={RemoteTodoApp}/>
         <Route path="todo-pubsub" component={PubSubTodoApp}/>
+        <Route path="command" component={CommandApp}/>
       </Route>
     </Router>
   </ApolloProvider>,

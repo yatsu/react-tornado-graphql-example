@@ -11,9 +11,10 @@ class Header extends Component {
             <img src={logo} className="app-logo" alt="logo"/>
             Example App
           </Link>
-          <Link to="/todo" className="item">Todo (Local)</Link>
-          <Link to="/todo-remote" className="item">Todo (GraphQL)</Link>
-          <Link to="/todo-pubsub" className="item">Todo (GraphQL PubSub)</Link>
+          <Link to="/todo" className="item">Local</Link>
+          <Link to="/todo-remote" className="item">GraphQL</Link>
+          <Link to="/todo-pubsub" className="item">GraphQL Subscription</Link>
+          <Link to="/command" className="item">Command</Link>
         </div>
       </div>
     );

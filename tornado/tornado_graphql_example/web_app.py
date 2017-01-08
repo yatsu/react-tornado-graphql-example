@@ -2,8 +2,8 @@
 
 from __future__ import absolute_import, division, print_function
 
-import json
 from tornado import web
+from tornado.escape import json_decode, json_encode
 from tornado.log import app_log
 import os
 import zmq
@@ -54,8 +54,70 @@ class SubscriptionHandler(GraphQLSubscriptionHandler):
     def subscriptions(self, subscriptions):
         self.opts['subscriptions'][self] = subscriptions
 
+    @property
+    def job_servers(self):
+        return self.opts['job_servers']
+
+    @property
+    def job_server_index(self):
+        return self.opts['job_server_index']
+
+    @job_server_index.setter
+    def job_server_index(self, job_server_index):
+        self.opts['job_server_index'] = job_server_index
+
     def check_origin(self, origin):
         return True  # TODO: check origin
+
+    def on_subscribe(self, subid, data):
+        super(SubscriptionHandler, self).on_subscribe(subid, data)
+
+        query = data.get('query')
+        op_name = self._get_op_name(query)
+
+        if op_name == 'commandExecute':
+            self._execute_command('countdown')  # TODO: get command
+
+    def _execute_command(self, command):
+        if len(self.job_servers) == 0:
+            app_log.error('there is no job server')
+            return
+
+        server = self.job_servers[self.job_server_index]
+        self.job_server_index = (self.job_server_index + 1) % len(self.job_servers)
+
+        context = zmq.Context.instance()
+        zmq_sock = context.socket(zmq.DEALER)
+        zmq_sock.linger = 1000
+        zmq_sock.identity = bytes(str(os.getpid()), 'ascii')
+        ip = server['ip']
+        if ip == '*':
+            ip = 'localhost'
+        url = 'tcp://{0}:{1}'.format(ip, server['zmq_port'])
+        app_log.info('connect %s', url)
+        zmq_sock.connect(url)
+
+        command = json_encode({'command': command})
+        app_log.info('command: %s', command)
+        zmq_sock.send_multipart([b'0', bytes(command, 'ascii')])
+
+        stream = ZMQStream(zmq_sock)
+        stream.on_recv(self.response_handler)
+
+    def response_handler(self, msg):
+        ident, resp_bytes = msg
+        resp = json_decode(resp_bytes.decode('utf-8'))
+        app_log.debug('resp: %s', resp)
+
+        subid = self.subscriptions.get('commandExecute')
+        if subid is not None:
+            self.write_message(json_encode({
+                'type': 'subscription_data',
+                'id': subid,
+                'payload': {
+                    'data': resp
+                }
+            }))
 
 
 class CommandHandler(CORSRequestHandler, web.RequestHandler):
@@ -64,41 +126,41 @@ class CommandHandler(CORSRequestHandler, web.RequestHandler):
         self.opts = opts
 
     @property
-    def servers(self):
-        return self.opts['servers']
+    def job_servers(self):
+        return self.opts['job_servers']
 
     @property
-    def index(self):
-        return self.opts['index']
+    def job_server_index(self):
+        return self.opts['job_server_index']
 
-    @index.setter
-    def index(self, index):
-        self.opts['index'] = index
+    @job_server_index.setter
+    def job_server_index(self, job_server_index):
+        self.opts['job_server_index'] = job_server_index
 
     @web.asynchronous
     def post(self):
         self.set_header('Content-Type', 'application/json')
 
-        server = self.servers[self.index]
-        self.index = (self.index + 1) % len(self.servers)
+        server = self.job_servers[self.job_server_index]
+        self.job_server_index = (self.job_server_index + 1) % len(self.job_servers)
 
         context = zmq.Context.instance()
-        sock = context.socket(zmq.DEALER)
-        sock.linger = 1000
-        sock.identity = bytes(str(os.getpid()), 'ascii')
+        zmq_sock = context.socket(zmq.DEALER)
+        zmq_sock.linger = 1000
+        zmq_sock.identity = bytes(str(os.getpid()), 'ascii')
         ip = server['ip']
         if ip == '*':
             ip = 'localhost'
         url = 'tcp://{0}:{1}'.format(ip, server['zmq_port'])
         app_log.info('connect %s', url)
-        sock.connect(url)
+        zmq_sock.connect(url)
 
-        command = json.dumps({'command': self.get_argument('command')})
+        command = json_encode({'command': self.get_argument('command')})
         app_log.info('command: %s', command)
-        sock.send(bytes(command, 'ascii'))
+        zmq_sock.send_multipart([b'0', bytes(command, 'ascii')])
 
-        stream = ZMQStream(sock)
-        stream.on_recv(self.response_handler(sock))
+        stream = ZMQStream(zmq_sock)
+        stream.on_recv(self.response_handler(zmq_sock))
 
     def response_handler(self, stream):
         def handler(msg):
@@ -117,8 +179,8 @@ class ExampleWebAPIApplication(web.Application):
         app_log.info('job_servers: %s', [s['pid'] for s in job_servers])
 
         self.opts = {
-            'servers': job_servers,
-            'index': 0,
+            'job_servers': job_servers,
+            'job_server_index': 0,
             'sockets': [],
             'subscriptions': {}
         }

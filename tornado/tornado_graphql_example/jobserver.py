@@ -157,7 +157,7 @@ class JobServer(Application):
         command = req_data['command']
         if command == 'countdown':
             yield self.countdown_handler(
-                req_data.get('interval', 0),
+                req_data.get('interval', 1),
                 req_data.get('count', 5)
             )
         else:
@@ -181,9 +181,9 @@ class JobServer(Application):
         except StreamClosedError:
             self.log.info('command closed')
             timestamp = datetime.now().timestamp()
-            self.zm_stream.send_multipart([b'0', json.dumps({
+            self.zmq_stream.send_multipart([b'0', json.dumps({
                 'stdout': None,
-                'finished': False,
+                'finished': True,
                 'timestamp': timestamp
             }).encode('utf-8')])
 

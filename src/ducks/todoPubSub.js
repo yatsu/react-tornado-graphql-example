@@ -66,7 +66,7 @@ export function subscribeTodos() {
   };
 }
 
-export function subscribeTodosSucceed(subid) {
+export function subscribeTodosSucceeded(subid) {
   return {
     type: SUBSCRIBE_SUCCEEDED,
     subid
@@ -79,7 +79,7 @@ export function unsubscribeTodos() {
   };
 }
 
-export function unsubscribeTodosSucceed(subid) {
+export function unsubscribeTodosSucceeded(subid) {
   return {
     type: UNSUBSCRIBE_SUCCEEDED,
     subid
@@ -150,7 +150,7 @@ export const todoSubscribeLogic = createLogic({
 
   process({ apolloClient, subscriptions }, dispatch, done) {
     if (subscriptions['todo']) {
-      dispatch(subscribeTodosSucceed(subscriptions['todo']._networkSubscriptionId));
+      dispatch(subscribeTodosSucceeded(subscriptions['todo']._networkSubscriptionId));
       return;
     }
     const sub = apolloClient.subscribe({ query: newTodosQuery }).subscribe({
@@ -158,11 +158,11 @@ export const todoSubscribeLogic = createLogic({
         dispatch(todoReceived(todo));
       },
       error(err) {
-        console.error('subscription error', err);
+        console.error('todo subscription error', err);
       }
     });
     subscriptions['todo'] = sub
-    dispatch(subscribeTodosSucceed(sub._networkSubscriptionId));
+    dispatch(subscribeTodosSucceeded(sub._networkSubscriptionId));
   }
 });
 
@@ -174,7 +174,7 @@ export const todoUnsubscribeLogic = createLogic({
     const sub = subscriptions['todo'];
     sub.unsubscribe();
     subscriptions['todo'] = null;
-    dispatch(unsubscribeTodosSucceed(sub._networkSubscriptionId));
+    dispatch(unsubscribeTodosSucceeded(sub._networkSubscriptionId));
   }
 });
 
