@@ -181,6 +181,7 @@ class TornadoGraphqlExampleApp(Application):
         appdir = os.path.join(xdg, 'tornado-graphql-example')
 
         def server_info(file_path):
+            app_log.debug('read server_info: %s', file_path)
             with open(file_path, 'r') as f:
                 return json.load(f)
 

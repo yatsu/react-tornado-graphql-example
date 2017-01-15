@@ -136,9 +136,11 @@ const newTodosQuery = gql`
 const addTodoMutation = gql`
   mutation addTodo($text: String!) {
     addTodo(text: $text) {
-      id
-      text
-      completed
+      todo {
+        id
+        text
+        completed
+      }
     }
   }
 `;

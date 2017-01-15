@@ -22,7 +22,11 @@ class AddTodo extends Component {
 const addTodoMutation = gql`
   mutation addTodo($text: String!) {
     addTodo(text: $text) {
-      id
+      todo {
+        id
+        text
+        completed
+      }
     }
   }
 `;

@@ -12,6 +12,7 @@ from __future__ import absolute_import, division, print_function
 
 from six.moves.urllib.parse import urlparse
 from tornado import web
+from tornado.log import app_log
 
 
 class CORSRequestHandler(web.RequestHandler):
@@ -90,7 +91,7 @@ class CORSRequestHandler(web.RequestHandler):
             # No CORS headers deny the request
             allow = False
         if not allow:
-            self.log.warning(
+            app_log.warning(
                 'Blocking Cross Origin API request for %s.  Origin: %s, Host: %s',
                 self.request.path, origin, host,
             )
@@ -104,13 +105,14 @@ class CORSRequestHandler(web.RequestHandler):
     @property
     def content_security_policy(self):
         csp = '; '.join([
-                super(CORSRequestHandler, self).content_security_policy,
-                "default-src 'none'",
-            ])
+            super(CORSRequestHandler, self).content_security_policy,
+            "default-src 'none'",
+        ])
         return csp
 
     def options(self, *args, **kwargs):
-        self.set_header('Access-Control-Allow-Headers', 'accept, content-type')
+        self.set_header('Access-Control-Allow-Headers',
+                        'accept, content-type, authorization')
         self.set_header('Access-Control-Allow-Methods',
                         'GET, PUT, POST, PATCH, DELETE, OPTIONS')
         self.finish()

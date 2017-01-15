@@ -35,9 +35,11 @@ const todoListQuery = gql`
 `;
 
 const toggleTodoMutation = gql`
-  mutation toggleTodo($id: String!) {
+  mutation toggleTodo($id: ID!) {
     toggleTodo(id: $id) {
-      completed
+      todo {
+        completed
+      }
     }
   }
 `;

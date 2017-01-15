@@ -18,6 +18,7 @@ ioloop.install()
 
 # tornado must be imported after `ioloop.install()`
 from tornado import gen  # noqa
+from tornado.escape import json_decode, json_encode, to_unicode, utf8  # noqa
 from tornado.iostream import StreamClosedError  # noqa
 from tornado.log import LogFormatter  # noqa
 from tornado.process import Subprocess  # noqa
@@ -98,6 +99,7 @@ class JobServer(Application):
             os.makedirs(dirname)
 
         with open(self.info_file, 'w') as f:
+            self.log.debug('write server_info: %s\n%s', self.info_file, self.server_info)
             json.dump(self.server_info, f, indent=2, sort_keys=True)
 
     def remove_server_info_file(self):
@@ -149,7 +151,7 @@ class JobServer(Application):
     @gen.coroutine
     def request_handler(self, msg):
         ident, request = msg
-        req_data = json.loads(request.decode('utf-8'))
+        req_data = json_decode(to_unicode(request))
         self.log.info('request: %s', req_data)
 
         if 'command' not in req_data:
@@ -170,22 +172,22 @@ class JobServer(Application):
         try:
             while True:
                 line_bytes = yield proc.stdout.read_until(b'\n')
-                line = line_bytes.decode('utf-8')[:-1]
+                line = to_unicode(line_bytes)[:-1]
                 self.log.info('command read: %s', line)
                 timestamp = datetime.now().timestamp()
-                self.zmq_stream.send_multipart([b'0', json.dumps({
+                self.zmq_stream.send_multipart([b'0', utf8(json_encode({
                     'stdout': line,
                     'finished': False,
                     'timestamp': timestamp
-                }).encode('utf-8')])
+                }))])
         except StreamClosedError:
             self.log.info('command closed')
             timestamp = datetime.now().timestamp()
-            self.zmq_stream.send_multipart([b'0', json.dumps({
+            self.zmq_stream.send_multipart([b'0', utf8(json_encode({
                 'stdout': None,
                 'finished': True,
                 'timestamp': timestamp
-            }).encode('utf-8')])
+            }))])
 
     def countdown_handler2(self, interval, count):
         return self.countdown_handler(interval, count)
