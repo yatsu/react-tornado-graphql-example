@@ -1,9 +1,9 @@
 react-tornado-graphql-example
 =============================
 
-An example app using React, Tornado, and GraphQL.
+A personal one-shot example app using React, Tornado, and GraphQL.
 
-The server-side GraphQL implementation is still naive and fragile.
+The subscription code is not working.
 
 Setup
 -----
